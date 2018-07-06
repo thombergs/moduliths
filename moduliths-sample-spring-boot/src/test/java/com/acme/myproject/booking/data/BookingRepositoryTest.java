@@ -2,6 +2,7 @@ package com.acme.myproject.booking.data;
 
 import static org.assertj.core.api.Java6Assertions.assertThat;
 
+import com.acme.myproject.customer.data.CustomerRepository;
 import de.olivergierke.moduliths.model.test.ModuleTest;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,9 +18,17 @@ public class BookingRepositoryTest {
   @Autowired
   private BookingRepository bookingRepository;
 
+  @Autowired(required = false)
+  private CustomerRepository customerRepository;
+
   @Test
   public void test(){
     assertThat(bookingRepository.count()).isEqualTo(0);
+  }
+
+  @Test
+  public void repositoryFromOtherModuleIsNotLoaded(){
+    assertThat(customerRepository).isNull();
   }
 
 }
