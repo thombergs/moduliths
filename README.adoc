@@ -1,5 +1,5 @@
 = Moduliths
-:icons: font
+:icons:
 
 A playground to build technology supporting the development of modular monolithic (modulithic) Java applications.
 
