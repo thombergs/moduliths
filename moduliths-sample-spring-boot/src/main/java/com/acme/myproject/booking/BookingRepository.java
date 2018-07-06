@@ -1,4 +1,4 @@
-package com.acme.myproject.booking.data;
+package com.acme.myproject.booking;
 
 import org.springframework.data.repository.CrudRepository;
 

@@ -1,4 +1,4 @@
-package com.acme.myproject.flight.data;
+package com.acme.myproject.flight;
 
 import lombok.Builder;
 import lombok.Data;

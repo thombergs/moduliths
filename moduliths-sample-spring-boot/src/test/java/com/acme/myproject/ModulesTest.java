@@ -7,7 +7,7 @@ public class ModulesTest {
 
   @Test
   public void verifyModules() {
-    new Modules().verify();
+    Modules.of(Application.class).verify();
   }
 
 }

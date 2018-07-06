@@ -1,4 +1,4 @@
-package com.acme.myproject.customer.data;
+package com.acme.myproject.customer;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;

@@ -1,4 +1,4 @@
-package com.acme.myproject.flight.web;
+package com.acme.myproject.flight;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

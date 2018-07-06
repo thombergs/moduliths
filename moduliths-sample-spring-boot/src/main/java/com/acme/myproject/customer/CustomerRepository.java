@@ -1,4 +1,4 @@
-package com.acme.myproject.customer.data;
+package com.acme.myproject.customer;
 
 import java.util.List;
 import org.springframework.data.repository.CrudRepository;

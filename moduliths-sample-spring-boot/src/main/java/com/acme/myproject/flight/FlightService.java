@@ -1,6 +1,5 @@
-package com.acme.myproject.flight.service;
+package com.acme.myproject.flight;
 
-import com.acme.myproject.flight.data.Flight;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 

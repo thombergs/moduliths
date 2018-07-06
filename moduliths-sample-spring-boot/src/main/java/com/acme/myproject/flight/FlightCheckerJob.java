@@ -1,4 +1,4 @@
-package com.acme.myproject.flight.service;
+package com.acme.myproject.flight;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -10,7 +10,7 @@ public class FlightCheckerJob {
 
   @Scheduled(fixedDelay = 1000)
   public void checkFlights() {
-    log.info("scheduled job running...");
+    LOG.info("scheduled job running...");
   }
 
 }

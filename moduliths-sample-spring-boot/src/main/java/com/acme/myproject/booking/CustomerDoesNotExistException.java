@@ -1,4 +1,4 @@
-package com.acme.myproject.booking.service;
+package com.acme.myproject.booking;
 
 class CustomerDoesNotExistException extends RuntimeException {
 

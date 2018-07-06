@@ -1,6 +1,6 @@
-package com.acme.myproject.booking.data;
+package com.acme.myproject.booking;
 
-import com.acme.myproject.customer.data.Customer;
+import com.acme.myproject.customer.Customer;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;

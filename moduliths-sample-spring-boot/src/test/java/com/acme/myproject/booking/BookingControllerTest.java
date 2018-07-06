@@ -1,8 +1,8 @@
-package com.acme.myproject.booking.web;
+package com.acme.myproject.booking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.acme.myproject.flight.web.FlightController;
+import com.acme.myproject.flight.FlightController;
 import de.olivergierke.moduliths.model.test.ModuleTest;
 import org.junit.Before;
 import org.junit.Test;

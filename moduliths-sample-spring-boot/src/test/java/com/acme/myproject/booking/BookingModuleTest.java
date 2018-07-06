@@ -2,11 +2,9 @@ package com.acme.myproject.booking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.acme.myproject.booking.service.BookingService;
-import com.acme.myproject.booking.data.BookingRepository;
-import com.acme.myproject.customer.data.CustomerRepository;
-import com.acme.myproject.flight.service.FlightService;
-import com.acme.myproject.flight.web.FlightController;
+import com.acme.myproject.customer.CustomerRepository;
+import com.acme.myproject.flight.FlightService;
+import com.acme.myproject.flight.FlightController;
 import de.olivergierke.moduliths.model.test.ModuleTest;
 import org.junit.Before;
 import org.junit.Test;

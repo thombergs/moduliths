@@ -1,4 +1,4 @@
-package com.acme.myproject.booking.web;
+package com.acme.myproject.booking;
 
 import lombok.Builder;
 import lombok.Data;
