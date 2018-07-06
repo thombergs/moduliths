@@ -15,67 +15,86 @@
  */
 package de.olivergierke.moduliths.model;
 
+import static com.tngtech.archunit.core.domain.properties.CanBeAnnotated.Predicates.*;
+import static java.util.Collections.*;
+
 import de.olivergierke.moduliths.Modulith;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.util.Assert;
+
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.core.domain.properties.CanBeAnnotated;
+import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
-import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.core.importer.ImportOptions;
+import com.tngtech.archunit.core.importer.Location;
 
 /**
  * @author Oliver Gierke
+ * @author Peter Gafert
  */
-public class Modules {
+public class Modules implements Iterable<Module> {
 
 	private final Classes classes;
 	private final Map<String, Module> modules;
 
-	public Modules() {
-		this("");
-	}
+	private Modules(Class<?> modulithType, DescribedPredicate<JavaClass> ignored) {
 
-	public Modules(String path) {
-		this(path, DescribedPredicate.alwaysFalse());
-	}
+		URI rootUri = getRootUriOf(modulithType);
 
-	public Modules(String path, DescribedPredicate<? super JavaClass> ignored) {
+		JavaClasses importedClasses = new ClassFileImporter() //
+				.importLocations(singleton(Location.of(rootUri))) //
+				.that(DescribedPredicate.not(ignored));
 
-		String workingDirectory = System.getProperty("user.dir") + "/" + path;
-
-		ImportOptions options = new ImportOptions() //
-				.with(ImportOption.Predefined.DONT_INCLUDE_TESTS) //
-				.with(ImportOption.Predefined.DONT_INCLUDE_JARS);
-
-		ClassFileImporter importer = new ClassFileImporter(options);
-
-		this.classes = Classes.of(importer.importPath(workingDirectory).that(DescribedPredicate.not(ignored)));
-
+		this.classes = Classes.of(importedClasses);
 		this.modules = new HashMap<>();
 
 		getModules().forEach(it -> this.modules.put(it.getName(), it));
 	}
 
+	public static Modules of(Class<?> modulithType) {
+		return of(modulithType, DescribedPredicate.alwaysFalse());
+	}
+
+	public static Modules of(Class<?> modulithType, DescribedPredicate<JavaClass> ignored) {
+
+		Assert.notNull(modulithType.getAnnotation(Modulith.class),
+				() -> String.format("Modules can only be retrieved from a @%s root type, but %s is not annotated with @%s",
+						Modulith.class.getSimpleName(), modulithType.getSimpleName(), Modulith.class.getSimpleName()));
+
+		return new Modules(modulithType, ignored);
+	}
+
+	public static Modules ofSubpackage(String subPackage) {
+
+		ModulithConfigurationFinder finder = new ModulithConfigurationFinder();
+		return Modules.of(finder.findFromPackage(subPackage));
+	}
+
 	public String getRootPackage() {
 
-		return classes.that(CanBeAnnotated.Predicates.annotatedWith(Modulith.class)).stream() //
+		return classes.that(annotatedWith(Modulith.class)).stream() //
 				.findFirst() //
-				.orElseThrow(() -> new IllegalStateException()) //
+				.orElseThrow(IllegalStateException::new) //
 				.getPackage();
+	}
+
+	public boolean contain(JavaClass javaClass) {
+		return modules.values().stream().anyMatch(module -> module.contains(javaClass));
 	}
 
 	public Collection<Module> getModules() {
 
 		String rootPackage = getRootPackage();
 
-		return JavaPackage.forNested(classes, rootPackage)//
+		return JavaPackage.forNested(classes, rootPackage) //
 				.getDirectSubPackages().stream() //
 				.map(Module::new) //
 				.collect(Collectors.toSet());
@@ -92,7 +111,31 @@ public class Modules {
 				.findFirst();
 	}
 
+	public Optional<Module> getModuleByBasePackage(String name) {
+
+		return modules.values().stream() //
+				.filter(it -> it.getBasePackage().getName().equals(name)) //
+				.findFirst();
+	}
+
 	public void verify() {
 		modules.values().forEach(it -> it.verifyDependencies(this));
+	}
+
+	/* 
+	 * (non-Javadoc)
+	 * @see java.lang.Iterable#iterator()
+	 */
+	@Override
+	public Iterator<Module> iterator() {
+		return modules.values().iterator();
+	}
+
+	private static URI getRootUriOf(Class<?> modulithType) {
+
+		URI uriOfModulith = new ClassFileImporter().importClass(modulithType).getSource().get().getUri();
+		String root = uriOfModulith.toString().replaceAll("[^/]+\\.class$", "");
+
+		return URI.create(root);
 	}
 }

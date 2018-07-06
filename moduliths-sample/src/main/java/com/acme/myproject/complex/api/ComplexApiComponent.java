@@ -13,18 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.acme.myproject.moduleC;
-
-import lombok.RequiredArgsConstructor;
-
-import com.acme.myproject.moduleB.internal.InternalComponentB;
+package com.acme.myproject.complex.api;
 
 /**
+ *
  * @author Oliver Gierke
  */
-@RequiredArgsConstructor
-public class InvalidComponent {
+public class ComplexApiComponent {
 
-	// This dependency is invalid as it refers to a component in an internal package
-	private final InternalComponentB invalidComponent;
 }

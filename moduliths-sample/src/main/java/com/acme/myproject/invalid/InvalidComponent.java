@@ -13,23 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.olivergierke.moduliths;
+package com.acme.myproject.invalid;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import lombok.RequiredArgsConstructor;
+
+import com.acme.myproject.moduleB.internal.InternalComponentB;
 
 /**
- * Annotation to customize information of a {@link Modulith} module.
- * 
  * @author Oliver Gierke
  */
-@Target({ ElementType.PACKAGE, ElementType.ANNOTATION_TYPE })
-@Retention(RetentionPolicy.RUNTIME)
-public @interface Module {
+@RequiredArgsConstructor
+public class InvalidComponent {
 
-	String displayName() default "";
-
-	String[] allowedDependencies() default {};
+	// This dependency is invalid as it refers to a component in an internal package
+	private final InternalComponentB invalidComponent;
 }

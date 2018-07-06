@@ -17,7 +17,7 @@ package com.acme.myproject.moduleB;
 
 import static org.assertj.core.api.Assertions.*;
 
-import de.olivergierke.moduliths.model.test.ModuleTest;
+import de.olivergierke.moduliths.model.test.ModuleTest.BootstrapMode;
 import de.olivergierke.moduliths.model.test.TestUtils;
 
 import org.junit.Test;
@@ -26,10 +26,12 @@ import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 import org.mockito.internal.creation.bytebuddy.MockAccess;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import com.acme.myproject.NonVerifyingModuleTest;
 import com.acme.myproject.moduleA.ServiceComponentA;
 import com.acme.myproject.moduleB.ModuleBTest.TestWithMocks;
 import com.acme.myproject.moduleB.ModuleBTest.TestWithoutMocks;
@@ -42,7 +44,7 @@ import com.acme.myproject.moduleB.internal.InternalComponentB;
 @SuiteClasses({ TestWithoutMocks.class, TestWithMocks.class })
 public class ModuleBTest {
 
-	@ModuleTest
+	@NonVerifyingModuleTest
 	public static class TestWithoutMocks {
 
 		@Autowired ServiceComponentB serviceComponentB;
@@ -53,7 +55,7 @@ public class ModuleBTest {
 		}
 	}
 
-	@ModuleTest
+	@NonVerifyingModuleTest
 	@RunWith(SpringRunner.class)
 	public static class TestWithMocks {
 
@@ -70,8 +72,25 @@ public class ModuleBTest {
 
 		@Test
 		public void considersNestedPackagePartOfTheModuleByDefault() {
-
 			context.getBean(InternalComponentB.class);
 		}
+
+		@Test // #4
+		public void tweaksAutoConfigurationPackageToModulePackage() {
+
+			assertThat(AutoConfigurationPackages.get(context)) //
+					.containsExactly(getClass().getPackage().getName());
+		}
+	}
+
+	@RunWith(SpringRunner.class)
+	@NonVerifyingModuleTest(BootstrapMode.DIRECT_DEPENDENCIES)
+	public static class TestWithUpstreamModule {
+
+		@Autowired ServiceComponentA componentA;
+		@Autowired ServiceComponentB componentB;
+
+		@Test
+		public void bootstrapsContext() {}
 	}
 }

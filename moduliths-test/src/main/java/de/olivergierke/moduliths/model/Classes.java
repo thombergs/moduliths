@@ -15,6 +15,8 @@
  */
 package de.olivergierke.moduliths.model;
 
+import static com.tngtech.archunit.base.DescribedPredicate.*;
+
 import lombok.RequiredArgsConstructor;
 
 import java.util.Iterator;
@@ -23,11 +25,13 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import com.tngtech.archunit.base.DescribedIterable;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaModifier;
 
 /**
  * @author Oliver Gierke
@@ -39,7 +43,7 @@ public class Classes implements DescribedIterable<JavaClass> {
 
 	/**
 	 * Returns {@link Classes} that match the given {@link DescribedPredicate}.
-	 * 
+	 *
 	 * @param predicate must not be {@literal null}.
 	 * @return
 	 */
@@ -63,10 +67,10 @@ public class Classes implements DescribedIterable<JavaClass> {
 	}
 
 	public boolean contains(JavaClass type) {
-		return classes.that(Predicates.isTheSameAs(type)).iterator().hasNext();
+		return classes.that(equalTo(type)).iterator().hasNext();
 	}
 
-	/* 
+	/*
 	 * (non-Javadoc)
 	 * @see com.tngtech.archunit.base.HasDescription#getDescription()
 	 */
@@ -75,12 +79,29 @@ public class Classes implements DescribedIterable<JavaClass> {
 		return classes.getDescription();
 	}
 
-	/* 
+	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Iterable#iterator()
 	 */
 	@Override
 	public Iterator<JavaClass> iterator() {
 		return classes.iterator();
+	}
+
+	public static String format(JavaClass type) {
+		return format(type, "");
+	}
+
+	public static String format(JavaClass type, String basePackage) {
+
+		Assert.notNull(type, "Type must not be null!");
+		Assert.notNull(basePackage, "Base package must not be null!");
+
+		String prefix = type.getModifiers().contains(JavaModifier.PUBLIC) ? "+" : "o";
+		String name = StringUtils.hasText(basePackage) //
+				? type.getName().replace(basePackage, "…") //
+				: type.getName();
+
+		return String.format("%s %s", prefix, name);
 	}
 }

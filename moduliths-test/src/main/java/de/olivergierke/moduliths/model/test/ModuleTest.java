@@ -15,19 +15,68 @@
  */
 package de.olivergierke.moduliths.model.test;
 
+import de.olivergierke.moduliths.model.Module.DependencyDepth;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 import org.springframework.boot.test.autoconfigure.filter.TypeExcludeFilters;
 import org.springframework.boot.test.context.SpringBootTestContextBootstrapper;
+import org.springframework.core.annotation.AliasFor;
 import org.springframework.test.context.BootstrapWith;
+import org.springframework.test.context.ContextConfiguration;
 
 /**
+ * Bootstraps the module containing the package of the test class annotated with {@link ModuleTest}. Will apply the
+ * following modifications to the Spring Boot configuration:
+ * <ul>
+ * <li>Restricts the component scanning to the module's package.
+ * <li>
+ * <li>Sets the module's package as the only auto-configuration and entity scan package.
+ * <li>
+ * </ul>
+ * 
  * @author Oliver Gierke
  */
 @Retention(RetentionPolicy.RUNTIME)
 @BootstrapWith(SpringBootTestContextBootstrapper.class)
 @TypeExcludeFilters(ModuleTypeExcludeFilter.class)
+@ContextConfiguration(loader = ModuleContextLoader.class)
 public @interface ModuleTest {
 
+	@AliasFor("mode")
+	BootstrapMode value() default BootstrapMode.STANDALONE;
+
+	@AliasFor("value")
+	BootstrapMode mode() default BootstrapMode.STANDALONE;
+
+	/**
+	 * Whether to automatically verify the module structure for validity.
+	 * 
+	 * @return
+	 */
+	boolean verifyAutomatically() default true;
+
+	@RequiredArgsConstructor
+	public enum BootstrapMode {
+
+		/**
+		 * Boorstraps the current module only.
+		 */
+		STANDALONE(DependencyDepth.NONE),
+
+		/**
+		 * Bootstraps the current module as well as its direct dependencies.
+		 */
+		DIRECT_DEPENDENCIES(DependencyDepth.IMMEDIATE),
+
+		/**
+		 * Bootstraps the current module as well as all upstream dependencies (inculding transitive ones).
+		 */
+		ALL_DEPENDENCIES(DependencyDepth.ALL);
+
+		private final @Getter DependencyDepth depth;
+	}
 }

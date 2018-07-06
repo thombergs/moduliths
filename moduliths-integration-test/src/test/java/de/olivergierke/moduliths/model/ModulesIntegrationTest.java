@@ -1,4 +1,3 @@
-package de.olivergierke.moduliths.model;
 /*
  * Copyright 2018 the original author or authors.
  *
@@ -14,6 +13,7 @@ package de.olivergierke.moduliths.model;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package de.olivergierke.moduliths.model;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -21,12 +21,15 @@ import java.util.Optional;
 
 import org.junit.Test;
 
+import com.acme.myproject.Application;
+
 /**
  * @author Oliver Gierke
+ * @author Peter Gafert
  */
-public class ModelIntegrationTest {
+public class ModulesIntegrationTest {
 
-	Modules modules = new Modules("../moduliths-sample");
+	Modules modules = Modules.of(Application.class);
 
 	@Test
 	public void exposesModulesForPrimaryPackages() {
@@ -34,7 +37,7 @@ public class ModelIntegrationTest {
 		Optional<Module> module = modules.getModuleByName("moduleB");
 
 		assertThat(module).hasValueSatisfying(it -> {
-			assertThat(it.getDependentModules(modules)).anySatisfy(dep -> {
+			assertThat(it.getDependencies(modules)).anySatisfy(dep -> {
 				assertThat(dep.getName()).isEqualTo("moduleA");
 			});
 		});
@@ -53,12 +56,23 @@ public class ModelIntegrationTest {
 	@Test
 	public void rejectsDependencyIntoInternalPackage() {
 
-		Optional<Module> module = modules.getModuleByName("moduleC");
+		Optional<Module> module = modules.getModuleByName("invalid");
 
 		assertThat(module).hasValueSatisfying(it -> {
 			assertThatExceptionOfType(IllegalStateException.class).isThrownBy(() -> {
 				it.verifyDependencies(modules);
 			});
+		});
+	}
+
+	@Test
+	public void complexModuleExposesNamedInterfaces() {
+
+		Optional<Module> module = modules.getModuleByName("complex");
+
+		assertThat(module).hasValueSatisfying(it -> {
+			assertThat(it.getNamedInterfaces().stream().map(NamedInterface::getName)) //
+					.containsExactlyInAnyOrder("API", "SPI");
 		});
 	}
 }

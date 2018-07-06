@@ -13,27 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.olivergierke.moduliths.model;
+package com.acme.myproject.complex.internal;
 
-import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.core.domain.JavaClass;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Oliver Gierke
  */
-class Predicates {
+@Component
+class ComplextInternalComponent {
 
-	static DescribedPredicate<JavaClass> isTheSameAs(JavaClass type) {
-
-		return new DescribedPredicate<JavaClass>("is the same as") {
-			/* 
-			 * (non-Javadoc)
-			 * @see com.tngtech.archunit.base.DescribedPredicate#apply(java.lang.Object)
-			 */
-			@Override
-			public boolean apply(JavaClass input) {
-				return input.equals(type);
-			}
-		};
-	}
 }

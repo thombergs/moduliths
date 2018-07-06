@@ -15,113 +15,315 @@
  */
 package de.olivergierke.moduliths.model;
 
+import static com.tngtech.archunit.core.domain.Formatters.*;
+import static java.lang.System.*;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
+import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.properties.CanBeAnnotated;
 
 /**
  * @author Oliver Gierke
  */
-@ToString
+@EqualsAndHashCode
 public class Module {
 
-	private final JavaPackage javaPackage;
+	private final @Getter JavaPackage basePackage;
 	private final Optional<de.olivergierke.moduliths.Module> moduleAnnotation;
+	private final @Getter NamedInterfaces namedInterfaces;
 
-	Module(JavaPackage javaPackage) {
+	Module(JavaPackage basePackage) {
 
-		this.javaPackage = javaPackage;
-		this.moduleAnnotation = javaPackage.getAnnotation(de.olivergierke.moduliths.Module.class);
+		this.basePackage = basePackage;
+		this.moduleAnnotation = basePackage.getAnnotation(de.olivergierke.moduliths.Module.class);
+		this.namedInterfaces = discoverNamedInterfaces(basePackage);
+	}
+
+	private static NamedInterfaces discoverNamedInterfaces(JavaPackage basePackage) {
+
+		List<NamedInterface> explicitlyAnnotated = basePackage
+				.getSubPackagesAnnotatedWith(de.olivergierke.moduliths.NamedInterface.class) //
+				.map(NamedInterface::of) //
+				.collect(Collectors.toList());
+
+		return NamedInterfaces.of(explicitlyAnnotated.isEmpty() //
+				? Collections.singletonList(NamedInterface.unnamed(basePackage)) //
+				: explicitlyAnnotated);
 	}
 
 	public String getName() {
-		return javaPackage.getLocalName();
+		return basePackage.getLocalName();
 	}
 
 	public String getDisplayName() {
 
-		return moduleAnnotation.map(de.olivergierke.moduliths.Module::displayName)//
-				.orElseGet(() -> javaPackage.getLocalName());
+		return moduleAnnotation.map(de.olivergierke.moduliths.Module::displayName) //
+				.orElseGet(() -> basePackage.getLocalName());
 	}
 
 	/**
-	 * Returns all modules that contain the types, the types of the current module depend on.
-	 * 
+	 * Returns all modules that contain types which the types of the current module depend on.
+	 *
 	 * @param modules must not be {@literal null}.
 	 * @return
 	 */
-	public Set<Module> getDependentModules(Modules modules) {
+	public List<Module> getDependencies(Modules modules) {
 
 		Assert.notNull(modules, "Modules must not be null!");
 
-		return getTypesDependedOn() //
-				.map(modules::getModuleByType) //
-				.flatMap(it -> it.map(Stream::of).orElseGet(Stream::empty)) //
-				.collect(Collectors.toSet());
+		return getDependencies(modules, DependencyDepth.IMMEDIATE);
+	}
+
+	public List<Module> getDependencies(Modules modules, DependencyDepth depth) {
+
+		Assert.notNull(modules, "Modules must not be null!");
+		Assert.notNull(depth, "Dependency depth must not be null!");
+
+		return streamDependencies(modules, depth).collect(Collectors.toList());
+	}
+
+	/**
+	 * Returns all {@link JavaPackage} for the current module including the ones by its dependencies.
+	 * 
+	 * @param modules must not be {@literal null}.
+	 * @param depth must not be {@literal null}.
+	 * @return
+	 */
+	public Stream<JavaPackage> getBasePackages(Modules modules, DependencyDepth depth) {
+
+		Assert.notNull(modules, "Modules must not be null!");
+		Assert.notNull(depth, "Dependency depth must not be null!");
+
+		Stream<Module> dependencies = streamDependencies(modules, depth);
+
+		return Stream.concat(Stream.of(this), dependencies) //
+				.map(Module::getBasePackage);
 	}
 
 	public Classes getSpringBeans() {
 
-		return javaPackage.that(CanBeAnnotated.Predicates.annotatedWith(Component.class)
+		return basePackage.that(CanBeAnnotated.Predicates.annotatedWith(Component.class) //
 				.or(CanBeAnnotated.Predicates.metaAnnotatedWith(Component.class)));
 	}
 
 	public boolean contains(JavaClass type) {
-		return javaPackage.contains(type);
+		return basePackage.contains(type);
 	}
 
-	public NamedInterface getPrimaryNamedInterface() {
-		return new NamedInterface(javaPackage.toSingle().getClasses());
-	}
-
+	/**
+	 * Returns whether the given {@link JavaClass} is exposed by the current module, i.e. whether it's part of any of the
+	 * module's named interfaces.
+	 * 
+	 * @param type must not be {@literal null}.
+	 * @return
+	 */
 	public boolean isExposed(JavaClass type) {
-		return getPrimaryNamedInterface().contains(type);
+
+		Assert.notNull(type, "Type must not be null!");
+
+		return namedInterfaces.stream().anyMatch(it -> it.contains(type));
 	}
 
 	public void verifyDependencies(Modules modules) {
+		getDependenciesToOther(modules).forEach(it -> it.isValidDependencyWithin(modules));
+	}
 
-		getTypesDependedOn().forEach(it -> {
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	public String toString() {
 
-			modules.getModuleByType(it).ifPresent(module -> {
+		StringBuilder builer = new StringBuilder("## ").append(getDisplayName()).append(" ##\n");
+		builer.append("> Logical name: ").append(getName()).append('\n');
+		builer.append("> Base package: ").append(basePackage.getName()).append('\n');
 
-				Assert.state(module.isExposed(it),
-						() -> String.format("Type %s is not exposed by module %s!", it.getName(), module.getName()));
+		if (namedInterfaces.hasExplicitInterfaces()) {
+
+			builer.append("> Named interfaces:\n");
+
+			namedInterfaces.forEach(it -> builer.append("  + ") //
+					.append(it.toString()) //
+					.append('\n'));
+		}
+
+		Classes beans = getSpringBeans();
+
+		if (beans.isEmpty()) {
+
+			builer.append("> Spring beans: none\n");
+
+		} else {
+
+			builer.append("> Spring beans:\n");
+			beans.forEach(it -> builer.append("  ") //
+					.append(Classes.format(it, basePackage.getName()))//
+					.append('\n'));
+		}
+
+		return builer.toString();
+	}
+
+	private Stream<Module> streamDependencies(Modules modules, DependencyDepth depth) {
+
+		switch (depth) {
+
+			case NONE:
+				return Stream.empty();
+			case IMMEDIATE:
+				return getDirectDependencies(modules);
+			case ALL:
+			default:
+				return getDirectDependencies(modules) //
+						.flatMap(it -> Stream.concat(Stream.of(it), it.streamDependencies(modules, DependencyDepth.ALL))) //
+						.distinct();
+		}
+	}
+
+	private Stream<Module> getDirectDependencies(Modules modules) {
+
+		return getDependenciesToOther(modules) //
+				.map(it -> modules.getModuleByType(it.target)) //
+				.distinct() //
+				.flatMap(it -> it.map(Stream::of).orElseGet(Stream::empty));
+	}
+
+	private Stream<ModuleDependency> getDependenciesToOther(Modules modules) {
+		return basePackage.stream().flatMap(it -> getModuleDependenciesOf(it, modules));
+	}
+
+	private Stream<ModuleDependency> getModuleDependenciesOf(JavaClass type, Modules modules) {
+
+		Stream<ModuleDependency> parameters = getDependenciesFromCodeUnitParameters(type, modules);
+		Stream<ModuleDependency> fieldTypes = getDependenciesFromFields(type, modules);
+		Stream<ModuleDependency> directDependencies = type.getDirectDependenciesFromSelf().stream() //
+				.filter(dependency -> isDependencyToOtherModule(dependency.getTargetClass(), modules)) //
+				.map(ModuleDependency::new);
+
+		return Stream.concat(Stream.concat(directDependencies, parameters), fieldTypes).distinct();
+	}
+
+	private Stream<ModuleDependency> getDependenciesFromCodeUnitParameters(JavaClass type, Modules modules) {
+
+		return type.getCodeUnits().stream() //
+				.flatMap(ModuleDependency::allFrom) //
+				.filter(moduleDependency -> isDependencyToOtherModule(moduleDependency.target, modules));
+	}
+
+	private boolean isDependencyToOtherModule(JavaClass dependency, Modules modules) {
+		return modules.contain(dependency) && !this.contains(dependency);
+	}
+
+	private Stream<ModuleDependency> getDependenciesFromFields(JavaClass type, Modules modules) {
+
+		return type.getFields().stream() //
+				.filter(it -> isDependencyToOtherModule(it.getType(), modules)) //
+				.map(ModuleDependency::fromField);
+	}
+
+	public enum DependencyDepth {
+
+		NONE,
+
+		IMMEDIATE,
+
+		ALL;
+	}
+
+	@ToString
+	@EqualsAndHashCode
+	@RequiredArgsConstructor
+	private static class ModuleDependency {
+
+		private final @NonNull JavaClass origin, target;
+		private final @NonNull String description;
+
+		ModuleDependency(Dependency dependency) {
+			this(dependency.getOriginClass(), dependency.getTargetClass(), dependency.getDescription());
+		}
+
+		void isValidDependencyWithin(Modules modules) {
+
+			Module targetModule = getExistingModuleOf(target, modules);
+
+			Assert.state(targetModule.isExposed(target), () -> {
+
+				Module originModule = getExistingModuleOf(origin, modules);
+				String violationText = String.format("Module '%s' depends on non-exposed type %s within module '%s'!",
+						originModule.getName(), target.getName(), targetModule.getName());
+
+				return violationText + lineSeparator() + description;
 			});
-		});
-	}
+		}
 
-	private Stream<JavaClass> getTypesDependedOn() {
+		private Module getExistingModuleOf(JavaClass javaClass, Modules modules) {
 
-		return javaPackage.stream() //
-				.flatMap(it -> getDependentTypes(it)) //
-				.filter(it -> !contains(it));
-	}
+			Optional<Module> module = modules.getModuleByType(javaClass);
 
-	private static Stream<JavaClass> getDependentTypes(JavaClass type) {
+			return module.orElseThrow(() -> new IllegalStateException(
+					String.format("Origin/Target of a %s should always be within a module, but %s is not",
+							getClass().getSimpleName(), javaClass.getName())));
+		}
 
-		Stream<JavaClass> parameters = getConstructorAndMethodParameters(type);
-		Stream<JavaClass> directDependencies = type.getDirectDependenciesFromSelf().stream() //
-				.map(it -> it.getTargetClass());
+		static ModuleDependency fromCodeUnitParameter(JavaCodeUnit codeUnit, JavaClass parameter) {
 
-		return Stream.concat(directDependencies, parameters) //
-				.filter(it -> !it.getPackage().startsWith("java"));
-	}
+			String description = createDescription(codeUnit, parameter, "parameter");
 
-	private static Stream<JavaClass> getConstructorAndMethodParameters(JavaClass type) {
+			return new ModuleDependency(codeUnit.getOwner(), parameter, description);
+		}
 
-		Stream<JavaClass> constructorParameterTypes = type.getConstructors().stream() //
-				.flatMap(it -> it.getParameters().stream());
-		Stream<JavaClass> methodParameterTypes = type.getMethods().stream().flatMap(it -> it.getParameters().stream());
+		static ModuleDependency fromCodeUnitReturnType(JavaCodeUnit codeUnit) {
 
-		return Stream.concat(constructorParameterTypes, methodParameterTypes).distinct();
+			String description = createDescription(codeUnit, codeUnit.getReturnType(), "return type");
+
+			return new ModuleDependency(codeUnit.getOwner(), codeUnit.getReturnType(), description);
+		}
+
+		static ModuleDependency fromField(JavaField field) {
+
+			String description = String.format("field %s is of type %s in %s", field.getFullName(), field.getType().getName(),
+					formatLocation(field.getOwner(), 0));
+
+			return new ModuleDependency(field.getOwner(), field.getType(), description);
+		}
+
+		static Stream<ModuleDependency> allFrom(JavaCodeUnit codeUnit) {
+
+			Stream<ModuleDependency> parameterDependencies = codeUnit.getParameters()//
+					.stream() //
+					.map(it -> fromCodeUnitParameter(codeUnit, it));
+
+			Stream<ModuleDependency> returnType = Stream.of(fromCodeUnitReturnType(codeUnit));
+
+			return Stream.concat(parameterDependencies, returnType);
+		}
+
+		private static String createDescription(JavaCodeUnit codeUnit, JavaClass declaredElement,
+				String declarationDescription) {
+
+			String codeUnitDescription = formatMethod(codeUnit.getOwner().getName(), codeUnit.getName(),
+					codeUnit.getParameters());
+			String declaration = declarationDescription + " " + declaredElement.getName();
+			String location = formatLocation(codeUnit.getOwner(), 0);
+
+			return String.format("%s declares %s in %s", codeUnitDescription, declaration, location);
+		}
 	}
 }
