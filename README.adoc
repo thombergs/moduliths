@@ -1,3 +1,5 @@
+:icons: font
+
 = Moduliths
 
 A playground to build technology supporting the development of modular monolithic (modulithic) Java applications.
