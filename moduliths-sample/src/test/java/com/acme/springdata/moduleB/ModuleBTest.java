@@ -15,10 +15,11 @@
  */
 package com.acme.springdata.moduleB;
 
-import com.acme.myproject.NonVerifyingModuleTest;
-import com.acme.springdata.moduleA.RepositoryA;
-import com.acme.springdata.moduleA.internal.InternalRepositoryA;
+import static org.assertj.core.api.Assertions.*;
+
 import de.olivergierke.moduliths.model.test.ModuleTest;
+
+import de.olivergierke.moduliths.model.test.ModuleTestExecution;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -26,7 +27,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import com.acme.myproject.NonVerifyingModuleTest;
+import com.acme.springdata.moduleA.RepositoryA;
+import com.acme.springdata.moduleA.internal.InternalRepositoryA;
 
 /**
  * @author Tom Hombergs
@@ -35,17 +38,20 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @RunWith(SpringRunner.class)
 public class ModuleBTest {
 
-  @Autowired
-  ApplicationContext context;
+	@Autowired ApplicationContext context;
 
-  @Test
-  public void bootstrapsModuleBWithDependenciesFromModuleB() {
+	@Autowired ModuleTestExecution testExecution;
 
-    context.getBean(RepositoryB.class);
-    context.getBean(RepositoryA.class);
+	@Test
+	public void bootstrapsModuleBWithDependenciesFromModuleB() {
 
-    // this currently fails because InternalRepositoryA is found even though it's in an internal package
-    //    assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
-    //            .isThrownBy(() -> context.getBean(InternalRepositoryA.class));
-  }
+		context.getBean(RepositoryB.class);
+		context.getBean(RepositoryA.class);
+
+		// InternalRepository is available in the ApplicationContext since we loaded DIRECT_DEPENDENCIES
+		context.getBean(InternalRepositoryA.class);
+
+		// ... but must not be accessed
+		testExecution.verify();
+	}
 }

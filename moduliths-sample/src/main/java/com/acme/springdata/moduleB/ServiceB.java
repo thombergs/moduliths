@@ -4,6 +4,9 @@ import com.acme.springdata.moduleA.RepositoryA;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+/**
+ * @author Tom Hombergs
+ */
 @Service
 public class ServiceB {
 

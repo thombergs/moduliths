@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.acme.springdata.moduleA.internal;
+package com.acme.springdata.invalid;
 
-import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.keyvalue.annotation.KeySpace;
+import com.acme.springdata.moduleA.internal.InternalRepositoryA;
+import lombok.RequiredArgsConstructor;
+
+import com.acme.myproject.moduleB.internal.InternalComponentB;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Tom Hombergs
  */
-@KeySpace("internalEntityA")
-@Data
-public class InternalEntityA {
+@RequiredArgsConstructor
+@Component
+public class InvalidComponent {
 
-  @Id
-  private Long id;
-
-  private String field;
-
+	// This dependency is invalid as it refers to a repository in an internal package
+	private final InternalRepositoryA invalidRepository;
 }

@@ -13,7 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.acme.springdata.moduleA;
+package com.acme.springdata.invalid;
+
+import static org.assertj.core.api.AssertionsForClassTypes.*;
+
+import de.olivergierke.moduliths.model.test.ModuleTest;
+import de.olivergierke.moduliths.model.test.ModuleTestExecution;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -22,26 +27,31 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.acme.myproject.NonVerifyingModuleTest;
+import com.acme.springdata.moduleA.RepositoryA;
 import com.acme.springdata.moduleA.internal.InternalRepositoryA;
 
 /**
  * @author Tom Hombergs
  */
-@NonVerifyingModuleTest
+@NonVerifyingModuleTest(ModuleTest.BootstrapMode.DIRECT_DEPENDENCIES)
 @RunWith(SpringRunner.class)
-public class ModuleATest {
+public class InvalidModuleTest {
 
 	@Autowired ApplicationContext context;
 
-	@Test
-	public void bootstrapsModuleAOnly() {
+	@Autowired ModuleTestExecution testExecution;
 
+	@Test
+	public void bootstrapsModuleBWithDependenciesFromModuleB() {
+
+		context.getBean(InvalidComponent.class);
 		context.getBean(RepositoryA.class);
+
+		// InternalRepository is in another module, but is loaded into the ApplicationContext nevertheless, since we used
+		// DIRECT_DEPENDENCIES bootstrap mode.
 		context.getBean(InternalRepositoryA.class);
 
-		// RepositoryB should not be loaded since it's in another module and we used STANDALONE bootstrap mode.
-		// This currently fails because RepositoryB is found even though it's in moduleB.
-		// assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
-		// .isThrownBy(() -> context.getBean(RepositoryB.class));
+		// Invalid dependency between InvalidComponent and InternalRepositoryA.
+		assertThatExceptionOfType(IllegalStateException.class).isThrownBy(() -> testExecution.verify());
 	}
 }
